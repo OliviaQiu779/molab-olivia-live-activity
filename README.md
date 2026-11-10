@@ -47,3 +47,11 @@ Week 12: Complete the first draft coding + User Testing
 Week 13: Change the code based on user feedback + Prepare final presentation plan
 
 Week14:Final Presentation
+
+## Current local app: Culet
+
+The latest iOS project is in `Culet/`. Open `Culet/Culet.xcodeproj` in Xcode using the Culet scheme.
+
+[App setup and device instructions](Culet/README.md)
+
+The project contains Home, Session, Profile, scene-specific conversation prompts, Hint Mode, and an interactive Live Activity. Xcode user state, build outputs, and signing exports are excluded by `.gitignore`.
