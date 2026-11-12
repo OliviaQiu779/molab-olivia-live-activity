@@ -85,6 +85,67 @@ struct PromptCard<HeaderAccessory: View>: View {
     }
 }
 
+struct SessionTimeRow: View {
+    let title: LocalizedStringKey
+    let identifier: String
+    @Binding var minutes: Int
+    @State private var draft = SessionTiming.minutes.lowerBound
+    @State private var showingEditor = false
+
+    var body: some View {
+        HStack {
+            Text(title).font(.subheadline)
+            Spacer()
+            Button {
+                showingEditor = true
+            } label: {
+                HStack(spacing: 5) {
+                    Text("\(minutes) min").monospacedDigit()
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold))
+                }
+                .font(.subheadline)
+                .frame(minHeight: 44)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(title))
+            .accessibilityValue(Text("\(minutes) min"))
+            .accessibilityIdentifier(identifier)
+        }
+        .frame(minHeight: 44)
+        .sheet(isPresented: $showingEditor) {
+            NavigationStack {
+                Picker("Minutes", selection: $draft) {
+                    ForEach(SessionTiming.minutes, id: \.self) { value in
+                        Text("\(value) min").tag(value)
+                    }
+                }
+                .pickerStyle(.wheel)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .culetScreen()
+                .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { showingEditor = false }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") {
+                            minutes = draft
+                            showingEditor = false
+                        }
+                        .accessibilityIdentifier("save-session-time")
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .preferredColorScheme(.dark)
+            .onAppear {
+                draft = SessionTiming.validMinutes(minutes, fallback: SessionTiming.minutes.lowerBound)
+            }
+        }
+    }
+}
+
 struct PrimaryActionStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label

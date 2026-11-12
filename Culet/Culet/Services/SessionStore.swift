@@ -15,6 +15,7 @@ struct SessionSnapshot: Codable {
     let startedAt: Date
     let endsAt: Date
     let discreet: Bool
+    let rotation: Int?
     var state: SocialActivityAttributes.ContentState
     var hasLiveActivity: Bool
 
@@ -23,18 +24,20 @@ struct SessionSnapshot: Codable {
     }
     var attributes: SocialActivityAttributes {
         .init(sessionID: id, sceneID: resolvedSceneID, title: title, colorIndex: colorIndex, symbol: symbol, startedAt: startedAt,
-              endsAt: endsAt, discreet: discreet)
+              endsAt: endsAt, discreet: discreet, rotation: rotation)
     }
 
-    init(situation: Situation, minutes: Int, kind: PromptKind, discreet: Bool) {
+    init(situation: Situation, minutes: Int, kind: PromptKind, discreet: Bool, rotation: Int) {
         id = UUID().uuidString
         title = situation.title
         sceneID = situation.id
         colorIndex = situation.colorIndex
         symbol = situation.symbol
         startedAt = .now
-        endsAt = startedAt.addingTimeInterval(TimeInterval(minutes * 60))
+        let duration = SessionTiming.validMinutes(minutes, fallback: SessionTiming.defaultDuration)
+        endsAt = startedAt.addingTimeInterval(TimeInterval(duration * 60))
         self.discreet = discreet
+        self.rotation = rotation
         let initialDeck = PromptLibrary.deck(for: situation)
         state = .init(promptIndex: initialDeck.firstIndex(where: { $0.kind == kind }) ?? 0, kind: kind)
         hasLiveActivity = false
@@ -44,6 +47,7 @@ struct SessionSnapshot: Codable {
         let a = activity.attributes
         id = a.sessionID; title = a.title; sceneID = a.sceneID; colorIndex = a.colorIndex; symbol = a.symbol
         startedAt = a.startedAt; endsAt = a.endsAt; discreet = a.discreet
+        rotation = a.rotation
         state = activity.content.state
         hasLiveActivity = true
         state.normalize(in: deck)
@@ -99,18 +103,18 @@ final class SessionStore {
         if let session, session.endsAt <= .now {
             await end()
         } else {
-            await updateTimedDirection()
+            await updateTimedPrompt()
             persist()
             scheduleSessionTimer()
         }
     }
 
     @discardableResult
-    func start(situation: Situation, minutes: Int, kind: PromptKind, discreet: Bool) async -> Bool {
+    func start(situation: Situation, minutes: Int, kind: PromptKind, discreet: Bool, rotation: Int) async -> Bool {
         guard !isBusy, session == nil else { return false }
         isBusy = true
         defer { isBusy = false }
-        var snapshot = SessionSnapshot(situation: situation, minutes: minutes, kind: kind, discreet: discreet)
+        var snapshot = SessionSnapshot(situation: situation, minutes: minutes, kind: kind, discreet: discreet, rotation: rotation)
         snapshot.state.isPromptSaved = isSaved(snapshot.prompt)
         if ActivityAuthorizationInfo().areActivitiesEnabled {
             do {
@@ -139,9 +143,11 @@ final class SessionStore {
         // Read the latest activity state, including updates made from the Lock Screen.
         if let activity { snapshot.state = activity.content.state }
         let deck = snapshot.deck
-        let switched = snapshot.state.applyTimedDirection(in: deck, from: snapshot.startedAt, until: snapshot.endsAt)
-        if !switched || (kind != nil && kind != snapshot.state.kind) {
-            snapshot.state.advance(in: deck, to: kind)
+        let now = Date.now
+        let refreshed = snapshot.state.applyTimedUpdate(in: deck, from: snapshot.startedAt, until: snapshot.endsAt,
+                                                       rotation: snapshot.rotation, now: now)
+        if !refreshed || (kind != nil && kind != snapshot.state.kind) {
+            snapshot.state.advance(in: deck, to: kind, at: now)
         }
         snapshot.state.isPromptSaved = isSaved(snapshot.prompt)
         session = snapshot
@@ -202,11 +208,12 @@ final class SessionStore {
         }
     }
 
-    private func updateTimedDirection() async {
+    private func updateTimedPrompt() async {
         guard !isBusy, var snapshot = session else { return }
         if let activity { snapshot.state = activity.content.state }
         let previousState = snapshot.state
-        snapshot.state.applyTimedDirection(in: snapshot.deck, from: snapshot.startedAt, until: snapshot.endsAt)
+        snapshot.state.applyTimedUpdate(in: snapshot.deck, from: snapshot.startedAt, until: snapshot.endsAt,
+                                        rotation: snapshot.rotation)
         guard snapshot.state != previousState else { return }
 
         isBusy = true
@@ -223,8 +230,9 @@ final class SessionStore {
         sessionTimer?.cancel()
         guard let session else { return }
         let id = session.id
-        let nextTransition = session.state.nextTransition(from: session.startedAt, until: session.endsAt)
-        let seconds = max(0, nextTransition.timeIntervalSinceNow)
+        let nextUpdate = session.state.nextTimedUpdate(from: session.startedAt, until: session.endsAt,
+                                                       rotation: session.rotation)
+        let seconds = max(0, nextUpdate.timeIntervalSinceNow)
 
         sessionTimer = Task { [weak self] in
             do {
@@ -238,7 +246,7 @@ final class SessionStore {
             if current.endsAt <= .now {
                 await self.end()
             } else {
-                await self.updateTimedDirection()
+                await self.updateTimedPrompt()
                 if !Task.isCancelled { self.scheduleSessionTimer() }
             }
         }

@@ -59,11 +59,67 @@ final class CuletUITests: XCTestCase {
         let custom = app.textFields["custom-name"]
         XCTAssertTrue(custom.waitForExistence(timeout: 5))
         custom.tap()
-        // The search value is prefilled; append a name to exercise arbitrary text.
-        custom.typeText(" book club")
+        // The search value is prefilled. Use a unique title to verify this exact scene survives relaunch.
+        let suffix = " book club " + UUID().uuidString.prefix(6)
+        let title = "wedding" + suffix
+        custom.typeText(suffix)
         app.buttons["Continue"].tap()
-        XCTAssertTrue(app.staticTexts["General prompts, with your occasion’s name."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["start-session"].exists)
+
+        app.terminate()
+        app.launch()
+        let savedScene = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@ AND label BEGINSWITH %@", "occasion-custom-", title)
+        ).firstMatch
+        XCTAssertTrue(savedScene.waitForExistence(timeout: 10))
+        savedScene.tap()
+        XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testCustomTimingPreferences() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launch()
+        app.tabBars.buttons["Profile"].tap()
+
+        func setMinutes(_ value: String, on row: XCUIElement) {
+            XCTAssertTrue(row.waitForExistence(timeout: 5))
+            if !row.isHittable { app.swipeUp() }
+            row.tap()
+            let wheel = app.pickerWheels.firstMatch
+            XCTAssertTrue(wheel.waitForExistence(timeout: 5))
+            XCTAssertEqual(app.pickerWheels.count, 1)
+            wheel.adjust(toPickerWheelValue: value + " min")
+            app.buttons["save-session-time"].tap()
+            XCTAssertTrue(row.waitForExistence(timeout: 5))
+            XCTAssertEqual(row.value as? String, value + " min")
+        }
+
+        let duration = app.buttons["profile-duration"]
+        let interval = app.buttons["profile-prompt-interval"]
+        setMinutes("47", on: duration)
+        setMinutes("4", on: interval)
+
+        app.terminate()
+        app.launch()
+        app.tabBars.buttons["Home"].tap()
+        let occasion = app.buttons["occasion-network"]
+        XCTAssertTrue(occasion.waitForExistence(timeout: 5))
+        occasion.tap()
+        app.swipeUp()
+        let sessionDuration = app.buttons["session-duration"]
+        let sessionInterval = app.buttons["session-prompt-interval"]
+        XCTAssertTrue(sessionDuration.waitForExistence(timeout: 5))
+        XCTAssertEqual(sessionDuration.value as? String, "47 min")
+        XCTAssertEqual(sessionInterval.value as? String, "4 min")
+        setMinutes("7", on: sessionInterval)
+
+        app.navigationBars.buttons.firstMatch.tap()
+        app.tabBars.buttons["Profile"].tap()
+        XCTAssertTrue(interval.waitForExistence(timeout: 5))
+        XCTAssertEqual(interval.value as? String, "4 min")
     }
 
     @MainActor

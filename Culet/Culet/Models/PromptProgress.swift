@@ -1,5 +1,16 @@
 import Foundation
 
+enum SessionTiming {
+    static let minutes = 1...480
+    static let defaultDuration = 60
+    static let defaultPromptInterval = 2
+
+    static func validMinutes(_ value: Int?, fallback: Int) -> Int {
+        guard let value, minutes.contains(value) else { return fallback }
+        return value
+    }
+}
+
 /// Small, serializable progress shared by the app and Live Activity intents.
 /// History survives direction changes and relaunches without sending the library.
 struct PromptProgress: Codable, Hashable {
@@ -7,6 +18,7 @@ struct PromptProgress: Codable, Hashable {
     var kind: PromptKind
     var isPromptSaved = false
     private var timedDirection: PromptKind = .open
+    private var lastPromptChange: Date?
     private(set) var seenIndices: [Int]
 
     init(promptIndex: Int, kind: PromptKind, seenIndices: [Int]? = nil) {
@@ -15,7 +27,9 @@ struct PromptProgress: Codable, Hashable {
         self.seenIndices = seenIndices ?? [promptIndex]
     }
 
-    private enum CodingKeys: String, CodingKey { case promptIndex, kind, seenIndices, isPromptSaved, timedDirection }
+    private enum CodingKeys: String, CodingKey {
+        case promptIndex, kind, seenIndices, isPromptSaved, timedDirection, lastPromptChange
+    }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -23,6 +37,7 @@ struct PromptProgress: Codable, Hashable {
         kind = try container.decode(PromptKind.self, forKey: .kind)
         isPromptSaved = try container.decodeIfPresent(Bool.self, forKey: .isPromptSaved) ?? false
         timedDirection = try container.decodeIfPresent(PromptKind.self, forKey: .timedDirection) ?? .open
+        lastPromptChange = try container.decodeIfPresent(Date.self, forKey: .lastPromptChange)
         seenIndices = try container.decodeIfPresent([Int].self, forKey: .seenIndices) ?? [promptIndex]
     }
 
@@ -43,6 +58,26 @@ struct PromptProgress: Codable, Hashable {
         }
     }
 
+    func nextTimedUpdate(from start: Date, until end: Date, rotation: Int?) -> Date {
+        min(nextTransition(from: start, until: end), rotationDate(from: start, rotation: rotation))
+    }
+
+    /// Apply only one visible change after a pause, prioritizing the current phase.
+    @discardableResult
+    mutating func applyTimedUpdate(in deck: [ConversationPrompt], from start: Date, until end: Date,
+                                   rotation: Int?, now: Date = .now) -> Bool {
+        guard now < end else { return false }
+        if applyTimedDirection(in: deck, from: start, until: end, now: now) { return true }
+        guard now >= rotationDate(from: start, rotation: rotation) else { return false }
+        advance(in: deck, at: now)
+        return true
+    }
+
+    private func rotationDate(from start: Date, rotation: Int?) -> Date {
+        let minutes = SessionTiming.validMinutes(rotation, fallback: SessionTiming.defaultPromptInterval)
+        return (lastPromptChange ?? start).addingTimeInterval(TimeInterval(minutes * 60))
+    }
+
     /// Keeps a manually selected direction until the next scheduled transition.
     @discardableResult
     mutating func applyTimedDirection(in deck: [ConversationPrompt], from start: Date,
@@ -53,7 +88,7 @@ struct PromptProgress: Codable, Hashable {
 
         timedDirection = direction
         guard direction != kind else { return false }
-        advance(in: deck, to: direction)
+        advance(in: deck, to: direction, at: now)
         return true
     }
 
@@ -67,7 +102,7 @@ struct PromptProgress: Codable, Hashable {
         if !seenIndices.contains(promptIndex) { seenIndices.append(promptIndex) }
     }
 
-    mutating func advance(in deck: [ConversationPrompt], to selectedKind: PromptKind? = nil) {
+    mutating func advance(in deck: [ConversationPrompt], to selectedKind: PromptKind? = nil, at date: Date? = nil) {
         normalize(in: deck)
         guard !deck.isEmpty else { return }
         let selected = selectedKind ?? kind
@@ -83,6 +118,7 @@ struct PromptProgress: Codable, Hashable {
                 promptIndex = candidate
                 kind = selected
                 seenIndices.append(candidate)
+                if let date { lastPromptChange = date }
                 return
             }
         }

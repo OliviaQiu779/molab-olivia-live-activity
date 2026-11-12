@@ -12,6 +12,7 @@ struct SocialActivityAttributes: ActivityAttributes {
     let startedAt: Date
     let endsAt: Date
     let discreet: Bool
+    var rotation: Int? = nil
 
     var resolvedSceneID: String {
         sceneID ?? SituationLibrary.all.first(where: { $0.title == title })?.id ?? "custom-\(sessionID)"

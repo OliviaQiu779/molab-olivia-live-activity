@@ -2,11 +2,13 @@ import SwiftUI
 
 struct PrepareView: View {
     @Environment(SessionStore.self) private var store
-    @AppStorage("culet.defaultMinutes") private var defaultMinutes = 60
+    @AppStorage("culet.defaultMinutes") private var defaultMinutes = SessionTiming.defaultDuration
+    @AppStorage("culet.defaultPromptRotation") private var defaultRotation = SessionTiming.defaultPromptInterval
     @AppStorage("culet.discreet") private var discreet = false
     let situation: Situation
     let onStarted: () -> Void
-    @State private var minutes = 60
+    @State private var minutes = SessionTiming.defaultDuration
+    @State private var rotation = SessionTiming.defaultPromptInterval
     @State private var kind: PromptKind = .open
 
     private var deck: [ConversationPrompt] { PromptLibrary.deck(for: situation) }
@@ -32,13 +34,9 @@ struct PrepareView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 20) {
-                    HStack {
-                        Text("Duration").font(.subheadline)
-                        Spacer()
-                        Picker("Session length", selection: $minutes) {
-                            ForEach([30, 60, 90, 120], id: \.self) { Text("\($0) min").tag($0) }
-                        }.labelsHidden().tint(.white)
-                    }
+                    SessionTimeRow(title: "Duration", identifier: "session-duration", minutes: $minutes)
+                    Divider().overlay(.white.opacity(0.05))
+                    SessionTimeRow(title: "Prompt interval", identifier: "session-prompt-interval", minutes: $rotation)
                     Divider().overlay(.white.opacity(0.05))
                     VStack(alignment: .leading, spacing: 14) {
                         Text("Conversation direction").font(.subheadline).foregroundStyle(.secondary)
@@ -68,7 +66,7 @@ struct PrepareView: View {
                 } else {
                     Button {
                         Task {
-                            if await store.start(situation: situation, minutes: minutes, kind: kind, discreet: discreet) {
+                            if await store.start(situation: situation, minutes: minutes, kind: kind, discreet: discreet, rotation: rotation) {
                                 onStarted()
                             }
                         }
@@ -84,6 +82,9 @@ struct PrepareView: View {
             }.padding(.horizontal, 24).padding(.vertical, 12)
                 .background(CuletTheme.background.opacity(0.94))
         }
-        .onAppear { minutes = [30, 60, 90, 120].contains(defaultMinutes) ? defaultMinutes : 60 }
+        .onAppear {
+            minutes = SessionTiming.validMinutes(defaultMinutes, fallback: SessionTiming.defaultDuration)
+            rotation = SessionTiming.validMinutes(defaultRotation, fallback: SessionTiming.defaultPromptInterval)
+        }
     }
 }

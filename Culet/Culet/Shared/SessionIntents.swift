@@ -23,8 +23,10 @@ struct NextPromptIntent: LiveActivityIntent {
         var state = activity.content.state
         let attributes = activity.attributes
         let deck = attributes.deck
-        if !state.applyTimedDirection(in: deck, from: attributes.startedAt, until: attributes.endsAt) {
-            state.advance(in: deck)
+        let now = Date.now
+        if !state.applyTimedUpdate(in: deck, from: attributes.startedAt, until: attributes.endsAt,
+                                   rotation: attributes.rotation, now: now) {
+            state.advance(in: deck, at: now)
         }
         state.isPromptSaved = SavedPrompts.shared.contains(activity.attributes.prompt(for: state))
         await activity.update(ActivityContent(state: state, staleDate: activity.attributes.endsAt))

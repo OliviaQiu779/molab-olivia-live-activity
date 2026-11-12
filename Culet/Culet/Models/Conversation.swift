@@ -29,12 +29,13 @@ struct Situation: Identifiable, Hashable, Codable {
     let opening: String
     let followUp: String
     let closing: String
+    static let customCategory = "Your occasions"
     var isCustom: Bool { id.hasPrefix("custom-") }
 
     static func custom(_ name: String, id: String? = nil) -> Situation {
         Situation(id: id ?? "custom-\(UUID().uuidString)", title: name,
                   subtitle: "A little support for your own occasion.", symbol: "sparkles",
-                  category: "Your occasions", colorIndex: 0,
+                  category: customCategory, colorIndex: 0,
                   opening: "What has been the highlight of your week?",
                   followUp: "What’s something you’re looking forward to?",
                   closing: "It was lovely talking with you. Enjoy the rest of your day!")

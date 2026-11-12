@@ -2,49 +2,55 @@ import SwiftUI
 
 struct ProfileView: View {
     @Environment(SessionStore.self) private var store
-    @AppStorage("culet.defaultMinutes") private var defaultMinutes = 60
+    @AppStorage("culet.defaultMinutes") private var defaultMinutes = SessionTiming.defaultDuration
+    @AppStorage("culet.defaultPromptRotation") private var defaultRotation = SessionTiming.defaultPromptInterval
     @AppStorage("culet.discreet") private var discreet = false
-    @AppStorage("culet.displayName") private var displayName = "Olivia"
+    @AppStorage("culet.displayName") private var displayName = "Olivia Q"
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 30) {
-                    HStack(alignment: .top, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Eyebrow(text: "Summary")
-                            Text("Your frequency.")
-                                .font(.system(.largeTitle, weight: .light)).tracking(-1.2)
-                        }
-                        Spacer(minLength: 0)
+                    VStack(alignment: .leading, spacing: 20) {
                         NavigationLink {
                             ProfileDetailsView(displayName: $displayName)
                         } label: {
-                            Image(systemName: "person")
-                                .font(.system(size: 17, weight: .ultraLight))
-                                .frame(width: 48, height: 48)
-                                .glassEffect(.regular.interactive(), in: .circle)
+                            HStack(spacing: 14) {
+                                Image(systemName: "person")
+                                    .font(.system(size: 17, weight: .ultraLight))
+                                    .frame(width: 48, height: 48)
+                                    .glassEffect(.regular, in: .circle)
+                                    .accessibilityHidden(true)
+                                Text(displayName.isEmpty ? "Olivia Q" : displayName)
+                                    .font(.title3).lineLimit(2)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                                    .accessibilityHidden(true)
+                            }
+                            .frame(minHeight: 48)
+                            .contentShape(.rect)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Edit personal profile")
+
+                        Divider()
                     }.padding(.top, 20)
 
-                    HStack(spacing: 0) {
-                        stat(value: store.completedCount, title: "Sessions")
-                        Rectangle().fill(.white.opacity(0.12)).frame(width: 0.5, height: 50)
-                        stat(value: store.savedPromptCount, title: "Saved")
-                    }.padding(.vertical, 24).softPanel()
+                    VStack(alignment: .leading, spacing: 10) {
+                        Eyebrow(text: "Summary")
+                        HStack(spacing: 0) {
+                            stat(value: store.completedCount, title: "Sessions")
+                            Rectangle().fill(.white.opacity(0.12)).frame(width: 0.5, height: 50)
+                            stat(value: store.savedPromptCount, title: "Saved")
+                        }.padding(.vertical, 24).softPanel()
+                    }
 
                     VStack(alignment: .leading, spacing: 10) {
                         Eyebrow(text: "Preferences")
                         VStack(spacing: 0) {
-                            HStack {
-                                Text("Default duration").font(.subheadline)
-                                Spacer()
-                                Picker("Default duration", selection: $defaultMinutes) {
-                                    ForEach([30, 60, 90, 120], id: \.self) { Text("\($0) min").tag($0) }
-                                }.labelsHidden().tint(.white)
-                            }.frame(minHeight: 44)
+                            SessionTimeRow(title: "Duration", identifier: "profile-duration", minutes: $defaultMinutes)
+                            Divider()
+                            SessionTimeRow(title: "Prompt interval", identifier: "profile-prompt-interval", minutes: $defaultRotation)
                             Divider()
                             Toggle(isOn: $discreet) {
                                 VStack(alignment: .leading, spacing: 6) {
