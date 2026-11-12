@@ -62,6 +62,26 @@ enum SituationLibrary {
     static let categories = ["All", "Social", "Work & study", "Relationships", "Everyday"]
 }
 
+struct SceneColorPair: Hashable {
+    let primary: Int
+    let secondary: Int
+
+    static func resolve(_ sceneID: String, fallback: Int) -> Self {
+        switch sceneID {
+        case "coworkers": return .init(primary: 1, secondary: 0)
+        case "family": return .init(primary: 4, secondary: 3)
+        case "reunion": return .init(primary: 0, secondary: 2)
+        case "wedding": return .init(primary: 2, secondary: 4)
+        case "campus": return .init(primary: 4, secondary: 1)
+        case "neighbors": return .init(primary: 1, secondary: 2)
+        case "travel": return .init(primary: 3, secondary: 4)
+        case "conference": return .init(primary: 0, secondary: 4)
+        case "partner-family": return .init(primary: 2, secondary: 1)
+        default: return .init(primary: fallback, secondary: (fallback + 3) % 5)
+        }
+    }
+}
+
 enum PromptLibrary {
     static func deck(for situation: Situation) -> [ConversationPrompt] {
         let catalogID = situation.isCustom ? "custom" : situation.id

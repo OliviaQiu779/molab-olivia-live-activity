@@ -3,7 +3,10 @@ import Foundation
 @main
 struct PromptChecks {
     static func main() throws {
-        let scenes = SituationLibrary.all + [Situation.custom("Book club", id: "custom-check")]
+        let builtInScenes = SituationLibrary.all
+        let sceneColors = builtInScenes.map { SceneColorPair.resolve($0.id, fallback: $0.colorIndex) }
+        precondition(Set(sceneColors).count == builtInScenes.count, "Built-in scenes must have distinct color pairs")
+        let scenes = builtInScenes + [Situation.custom("Book club", id: "custom-check")]
         var builtInTexts = Set<String>()
         for scene in scenes {
             let deck = PromptLibrary.deck(for: scene)

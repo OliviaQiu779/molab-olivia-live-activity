@@ -30,8 +30,8 @@ struct SessionView: View {
                             }.pickerStyle(.segmented).disabled(store.isBusy)
 
                             let isSaved = store.isSaved(prompt)
-                            PromptCard(prompt: prompt, color: CuletPalette.color(at: session.colorIndex ?? 0),
-                                       secondaryColor: CuletPalette.color(at: (session.colorIndex ?? 0) + 3)) {
+                            let colors = CuletPalette.sceneColors(for: session.resolvedSceneID, fallback: session.colorIndex ?? 0)
+                            PromptCard(prompt: prompt, color: colors.primary, secondaryColor: colors.secondary) {
                                 Button {
                                     Task { await store.toggleSavedPrompt(prompt) }
                                 } label: {

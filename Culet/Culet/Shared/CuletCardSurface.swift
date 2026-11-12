@@ -11,6 +11,11 @@ enum CuletPalette {
     static func color(at index: Int) -> Color {
         colors[(index % colors.count + colors.count) % colors.count]
     }
+
+    static func sceneColors(for sceneID: String, fallback: Int) -> (primary: Color, secondary: Color) {
+        let pair = SceneColorPair.resolve(sceneID, fallback: fallback)
+        return (color(at: pair.primary), color(at: pair.secondary))
+    }
 }
 
 /// The exact same gradient and edge treatment is compiled into the app and widget.

@@ -67,9 +67,8 @@ struct CuletActivityCard: View {
         .frame(height: showHeader ? (dynamicTypeSize.isAccessibilitySize ? 160 : 156) : 128)
         .background {
             if showBackground {
-                CuletCardSurface(tint: CuletPalette.color(at: attributes.colorIndex ?? 0),
-                                 secondaryTint: CuletPalette.color(at: (attributes.colorIndex ?? 0) + 3),
-                                 cornerRadius: 24)
+                let colors = CuletPalette.sceneColors(for: attributes.resolvedSceneID, fallback: attributes.colorIndex ?? 0)
+                CuletCardSurface(tint: colors.primary, secondaryTint: colors.secondary, cornerRadius: 24)
             }
         }
         .foregroundStyle(.white).environment(\.colorScheme, .dark)

@@ -24,8 +24,9 @@ struct PrepareView: View {
 
                 VStack(alignment: .leading, spacing: 14) {
                     if let preview = deck.first(where: { $0.kind == kind }) {
-                        PromptCard(prompt: preview, color: CuletTheme.colors[situation.colorIndex],
-                                   secondaryColor: CuletPalette.color(at: situation.colorIndex + 3), hintMode: discreet)
+                        let colors = CuletPalette.sceneColors(for: situation.id, fallback: situation.colorIndex)
+                        PromptCard(prompt: preview, color: colors.primary,
+                                   secondaryColor: colors.secondary, hintMode: discreet)
                     }
                     if situation.isCustom {
                         Label("General prompts, with your occasion’s name.", systemImage: "info.circle")

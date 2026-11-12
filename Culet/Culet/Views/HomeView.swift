@@ -218,8 +218,8 @@ private struct SituationCard: View {
         }
         .padding(18).frame(minHeight: 208, alignment: .bottomLeading)
         .background {
-            CuletCardSurface(tint: CuletPalette.color(at: situation.colorIndex),
-                             secondaryTint: CuletPalette.color(at: situation.colorIndex + 3))
+            let colors = CuletPalette.sceneColors(for: situation.id, fallback: situation.colorIndex)
+            CuletCardSurface(tint: colors.primary, secondaryTint: colors.secondary)
         }
         .foregroundStyle(.white)
         .contentShape(.rect(cornerRadius: 30))
