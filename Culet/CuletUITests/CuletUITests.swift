@@ -43,9 +43,10 @@ final class CuletUITests: XCTestCase {
         let endConfirmation = app.buttons["confirm-end-session"].firstMatch
         XCTAssertTrue(endConfirmation.waitForExistence(timeout: 5))
         endConfirmation.tap()
-        XCTAssertTrue(app.buttons["Find your occasion"].waitForExistence(timeout: 10))
-
-        app.tabBars.buttons["Home"].tap()
+        let findOccasion = app.buttons["Find your occasion"]
+        XCTAssertTrue(findOccasion.waitForExistence(timeout: 10))
+        capture("Session-Empty")
+        findOccasion.tap()
         let search = app.textFields["occasion-search"]
         search.tap()
         search.typeText("wedding")
@@ -124,6 +125,13 @@ final class CuletUITests: XCTestCase {
         app.launch()
         let scene = app.buttons["occasion-date"]
         XCTAssertTrue(scene.waitForExistence(timeout: 10))
+        app.tabBars.buttons["Session"].tap()
+        if app.buttons["end-session"].exists {
+            app.buttons["end-session"].tap()
+            app.buttons["confirm-end-session"].firstMatch.tap()
+            XCTAssertTrue(app.buttons["Find your occasion"].waitForExistence(timeout: 10))
+        }
+        app.tabBars.buttons["Home"].tap()
         scene.tap()
         app.buttons["start-session"].tap()
         XCTAssertTrue(app.buttons["next-prompt"].waitForExistence(timeout: 10))
@@ -139,7 +147,28 @@ final class CuletUITests: XCTestCase {
         }
         let next = springboard.buttons["activity-next-prompt"].firstMatch
         XCTAssertTrue(next.waitForExistence(timeout: 5))
+        let bookmark = springboard.buttons["activity-save-prompt"].firstMatch
+        XCTAssertTrue(bookmark.exists)
+        XCTAssertFalse(springboard.buttons["activity-end-session"].exists)
+        XCTAssertFalse(springboard.staticTexts["OPEN"].exists)
         capture("05-LiveActivity")
+
+        let wasSaved = bookmark.label == "Remove saved prompt"
+        let expectedLabel = wasSaved ? "Save prompt" : "Remove saved prompt"
+        bookmark.tap()
+        let updatedBookmark = springboard.buttons.matching(
+            NSPredicate(format: "identifier == %@ AND label == %@", "activity-save-prompt", expectedLabel)
+        ).firstMatch
+        XCTAssertTrue(updatedBookmark.waitForExistence(timeout: 15))
+        app.activate()
+        let appBookmark = app.buttons["save-prompt"]
+        XCTAssertTrue(appBookmark.waitForExistence(timeout: 10))
+        XCTAssertEqual(appBookmark.label, expectedLabel)
+        appBookmark.tap()
+
+        XCUIDevice.shared.press(.home)
+        top.press(forDuration: 0.1, thenDragTo: bottom)
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
         next.tap()
         app.activate()
         XCTAssertTrue(app.staticTexts["What made you choose this spot?"].waitForExistence(timeout: 10))

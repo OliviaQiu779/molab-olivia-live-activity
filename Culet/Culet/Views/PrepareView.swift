@@ -8,7 +8,6 @@ struct PrepareView: View {
     let onStarted: () -> Void
     @State private var minutes = 60
     @State private var kind: PromptKind = .open
-    @State private var previewIndex = 0
 
     private var deck: [ConversationPrompt] { PromptLibrary.deck(for: situation) }
 
@@ -22,19 +21,10 @@ struct PrepareView: View {
                 }.padding(.top, 16)
 
                 VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        Eyebrow(text: discreet ? "Lock Screen · Hint Mode" : "Lock Screen · Full prompt")
-                        Spacer()
-                        Button {
-                            previewIndex = PromptLibrary.nextIndex(in: deck, after: previewIndex, kind: kind)
-                        } label: {
-                            Image(systemName: "arrow.clockwise").font(.system(size: 13, weight: .light))
-                                .frame(width: 32, height: 32)
-                                .overlay(Circle().strokeBorder(.white.opacity(0.18), lineWidth: 0.5))
-                        }.foregroundStyle(.white).accessibilityLabel("Another preview")
+                    if let preview = deck.first(where: { $0.kind == kind }) {
+                        PromptCard(prompt: preview, color: CuletTheme.colors[situation.colorIndex],
+                                   secondaryColor: CuletPalette.color(at: situation.colorIndex + 3), hintMode: discreet)
                     }
-                    PromptCard(prompt: deck[previewIndex], color: CuletTheme.colors[situation.colorIndex],
-                               secondaryColor: CuletPalette.color(at: situation.colorIndex + 3), hintMode: discreet)
                     if situation.isCustom {
                         Label("General prompts, with your occasion’s name.", systemImage: "info.circle")
                             .font(.caption).foregroundStyle(.secondary)
@@ -95,6 +85,5 @@ struct PrepareView: View {
                 .background(CuletTheme.background.opacity(0.94))
         }
         .onAppear { minutes = [30, 60, 90, 120].contains(defaultMinutes) ? defaultMinutes : 60 }
-        .onChange(of: kind) { _, newValue in previewIndex = deck.firstIndex { $0.kind == newValue } ?? 0 }
     }
 }

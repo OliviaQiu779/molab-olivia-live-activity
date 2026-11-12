@@ -43,18 +43,24 @@ struct CuletActivityCard: View {
                     }.buttonStyle(.plain).accessibilityLabel("Another idea").accessibilityIdentifier("activity-next-prompt")
                 }
                 Spacer(minLength: 2)
-                if !dynamicTypeSize.isAccessibilitySize {
-                    Text(isOver ? "COMPLETE" : state.kind.rawValue.uppercased())
+                if isOver {
+                    Text("COMPLETE")
                         .font(.system(size: 8, weight: .medium, design: .monospaced))
-                        .tracking(1.3).foregroundStyle(.white.opacity(0.65)).lineLimit(1)
+                        .tracking(1.3).foregroundStyle(.white.opacity(0.65))
+                } else if let prompt {
+                    Button(intent: SavePromptIntent(sessionID: attributes.sessionID,
+                                                    promptID: prompt.id, save: !state.isPromptSaved)) {
+                        Image(systemName: state.isPromptSaved ? "bookmark.fill" : "bookmark")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.white)
+                            .frame(width: 34, height: 34)
+                            .background(.white.opacity(0.10), in: .circle)
+                            .overlay(Circle().strokeBorder(.white.opacity(0.18), lineWidth: 0.5))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(state.isPromptSaved ? "Remove saved prompt" : "Save prompt")
+                    .accessibilityIdentifier("activity-save-prompt")
                 }
-                Button(intent: EndSessionIntent(sessionID: attributes.sessionID)) {
-                    Text("End").font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.85))
-                        .padding(.horizontal, 12).frame(height: 30)
-                        .background(.white.opacity(0.07), in: .capsule)
-                        .overlay(Capsule().strokeBorder(.white.opacity(0.18), lineWidth: 0.5))
-                }.buttonStyle(.plain).accessibilityIdentifier("activity-end-session")
             }
         }
         .padding(.horizontal, 18).padding(.vertical, 15)

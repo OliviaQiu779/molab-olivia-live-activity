@@ -7,95 +7,77 @@ struct SessionView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
+            Group {
                 if let session = store.session, let prompt = session.prompt {
-                    VStack(alignment: .leading, spacing: 26) {
-                        HStack {
-                            Eyebrow(text: "Here. Now.")
-                            Spacer()
-                            Circle().fill(CuletTheme.accent).frame(width: 4, height: 4)
-                            Eyebrow(text: "Live")
-                        }.padding(.top, 18)
-                        HStack(alignment: .bottom) {
-                            Text(session.title).font(.system(.largeTitle, weight: .light)).tracking(-1.2)
-                            Spacer(minLength: 8)
-                            VStack(alignment: .trailing, spacing: 5) {
-                                Text(timerInterval: session.startedAt...session.endsAt, countsDown: true)
-                                    .font(.system(.title3, design: .monospaced, weight: .ultraLight))
-                                    .monospacedDigit().fixedSize()
-                                Eyebrow(text: "Remaining")
-                            }
-                        }
-
-                        Picker("Conversation direction", selection: Binding(
-                            get: { session.state.kind },
-                            set: { value in Task { await store.next(kind: value) } }
-                        )) {
-                            ForEach(PromptKind.allCases) { Text($0.rawValue).tag($0) }
-                        }.pickerStyle(.segmented).disabled(store.isBusy)
-
-                        PromptCard(prompt: prompt, color: CuletPalette.color(at: session.colorIndex ?? 0),
-                                   secondaryColor: CuletPalette.color(at: (session.colorIndex ?? 0) + 3))
-
-                        Button {
-                            Task { await store.next() }
-                        } label: {
-                            HStack(spacing: 12) {
-                                Text("Another idea")
-                                Image(systemName: "arrow.up.right").font(.caption)
-                            }
-                        }.buttonStyle(PrimaryActionStyle()).disabled(store.isBusy)
-                            .accessibilityIdentifier("next-prompt")
-
-                        HStack(alignment: .top, spacing: 10) {
-                            Image(systemName: session.hasLiveActivity ? "lock.iphone" : "iphone")
-                                .font(.system(size: 15, weight: .light))
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(session.hasLiveActivity ? "On your Lock Screen" : "In-app session")
-                                    .font(.caption)
-                                if !session.hasLiveActivity {
-                                    Text("Live Activity is unavailable. Your prompts are here.")
-                                        .font(.caption).foregroundStyle(.white.opacity(0.55))
-                                } else if session.discreet {
-                                    Text("Hint Mode is on.")
-                                        .font(.caption).foregroundStyle(.white.opacity(0.55))
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 26) {
+                            HStack(alignment: .bottom) {
+                                Text(session.title).font(.system(.largeTitle, weight: .light)).tracking(-1.2)
+                                Spacer(minLength: 8)
+                                VStack(alignment: .trailing, spacing: 5) {
+                                    Text(timerInterval: session.startedAt...session.endsAt, countsDown: true)
+                                        .font(.system(.title3, design: .monospaced, weight: .ultraLight))
+                                        .monospacedDigit().fixedSize()
+                                    Eyebrow(text: "Remaining")
                                 }
+                            }.padding(.top, 18)
+
+                            Picker("Conversation direction", selection: Binding(
+                                get: { session.state.kind },
+                                set: { value in Task { await store.next(kind: value) } }
+                            )) {
+                                ForEach(PromptKind.allCases) { Text($0.rawValue).tag($0) }
+                            }.pickerStyle(.segmented).disabled(store.isBusy)
+
+                            let isSaved = store.isSaved(prompt)
+                            PromptCard(prompt: prompt, color: CuletPalette.color(at: session.colorIndex ?? 0),
+                                       secondaryColor: CuletPalette.color(at: (session.colorIndex ?? 0) + 3)) {
+                                Button {
+                                    Task { await store.toggleSavedPrompt(prompt) }
+                                } label: {
+                                    Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
+                                        .font(.system(size: 15, weight: .medium))
+                                        .foregroundStyle(.white)
+                                        .frame(width: 36, height: 36)
+                                        .glassEffect(.regular.interactive(), in: .circle)
+                                        .frame(width: 44, height: 44)
+                                        .contentShape(.rect)
+                                }
+                                .buttonStyle(.plain).disabled(store.isBusy)
+                                .accessibilityLabel(isSaved ? "Remove saved prompt" : "Save prompt")
+                                .accessibilityIdentifier("save-prompt")
                             }
-                            Spacer()
-                        }.foregroundStyle(.white.opacity(0.65)).padding(.vertical, 4)
-                    }.padding(.horizontal, 24).padding(.bottom, 16)
+
+                            VStack(spacing: 12) {
+                                Button {
+                                    Task { await store.next() }
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        Text("Another idea")
+                                        Image(systemName: "arrow.up.right").font(.caption)
+                                    }
+                                }
+                                .buttonStyle(PrimaryActionStyle()).disabled(store.isBusy)
+                                .accessibilityIdentifier("next-prompt")
+
+                                Button(role: .destructive) {
+                                    confirmingEnd = true
+                                } label: {
+                                    Text("End Session")
+                                        .font(.body)
+                                        .foregroundStyle(.white.opacity(0.78))
+                                        .frame(maxWidth: .infinity, minHeight: 48)
+                                        .contentShape(.rect)
+                                }
+                                .buttonStyle(.plain).disabled(store.isBusy)
+                                .accessibilityIdentifier("end-session")
+                            }
+                        }.padding(.horizontal, 24).padding(.bottom, 16)
+                    }.scrollIndicators(.hidden)
                 } else {
-                    VStack(spacing: 25) {
-                        CardLightField(color: CuletTheme.colors[0], variant: 0)
-                            .frame(width: 180, height: 220).clipShape(.rect(cornerRadius: 70))
-                            .overlay(RoundedRectangle(cornerRadius: 70).strokeBorder(.white.opacity(0.15), lineWidth: 0.5))
-                        Text("A moment to connect.")
-                            .font(.system(.largeTitle, weight: .light)).tracking(-1).multilineTextAlignment(.center)
-                        Text("Choose a scene to begin.").font(.subheadline).foregroundStyle(.secondary)
-                        Button("Find your occasion", systemImage: "arrow.up.right") { selection = .home }
-                            .buttonStyle(PrimaryActionStyle())
-                    }.frame(maxWidth: .infinity).padding(32).padding(.top, 45)
+                    emptySession
                 }
-            }.scrollIndicators(.hidden)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    if store.session?.prompt != nil {
-                        Button(role: .destructive) {
-                            confirmingEnd = true
-                        } label: {
-                            Text("End Session")
-                                .font(.body)
-                                .foregroundStyle(.white.opacity(0.78))
-                                .frame(maxWidth: .infinity, minHeight: 48)
-                                .contentShape(.rect)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(store.isBusy)
-                        .accessibilityIdentifier("end-session")
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 6)
-                        .background(CuletTheme.background)
-                    }
-                }
+            }
                 .culetScreen()
                 .navigationTitle("Session").navigationBarTitleDisplayMode(.inline)
                 .sheet(isPresented: $confirmingEnd) {
@@ -121,6 +103,68 @@ struct SessionView: View {
                 }
         }
     }
+
+    private var emptySession: some View {
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 24) {
+                    VStack(spacing: 12) {
+                        Text("A moment to connect.")
+                            .font(.system(.largeTitle, weight: .light))
+                            .tracking(-1)
+                        Text("Choose a scene to begin.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .multilineTextAlignment(.center)
+
+                    Button("Find your occasion", systemImage: "arrow.up.right") {
+                        selection = .home
+                    }
+                    .buttonStyle(PrimaryActionStyle())
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .padding(.bottom, 60)
+                .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+            }
+            .scrollIndicators(.hidden)
+        }
+        .background {
+            ZStack {
+                EllipticalGradient(
+                    stops: [
+                        .init(color: Color(red: 0.22, green: 0.37, blue: 0.38), location: 0),
+                        .init(color: Color(red: 0.15, green: 0.27, blue: 0.30), location: 0.35),
+                        .init(color: .clear, location: 1)
+                    ],
+                    center: .init(x: 0.35, y: 0.41),
+                    endRadiusFraction: 0.66
+                )
+                EllipticalGradient(
+                    colors: [Color(red: 0.23, green: 0.19, blue: 0.30).opacity(0.72), .clear],
+                    center: .init(x: 0.67, y: 0.50),
+                    endRadiusFraction: 0.68
+                )
+            }
+            .mask {
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0.11),
+                        .init(color: .black, location: 0.32),
+                        .init(color: .black, location: 0.57),
+                        .init(color: .clear, location: 0.88)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .ignoresSafeArea()
+            .accessibilityHidden(true)
+        }
+        .toolbarBackground(.hidden, for: .navigationBar)
+    }
+
 }
 
 private struct EndSessionSheet: View {

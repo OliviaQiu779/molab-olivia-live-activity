@@ -54,13 +54,14 @@ struct SessionSnapshot: Codable {
 final class SessionStore {
     private(set) var session: SessionSnapshot?
     private(set) var completedCount = 0
+    var savedPromptCount: Int { SavedPrompts.shared.count }
     private(set) var isBusy = false
     var notice: String?
 
     @ObservationIgnored private var activity: Activity<SocialActivityAttributes>?
     @ObservationIgnored private var contentTask: Task<Void, Never>?
     @ObservationIgnored private var stateTask: Task<Void, Never>?
-    @ObservationIgnored private var expiryTask: Task<Void, Never>?
+    @ObservationIgnored private var sessionTimer: Task<Void, Never>?
     @ObservationIgnored private let defaults = UserDefaults.standard
 
     init() {
@@ -98,8 +99,9 @@ final class SessionStore {
         if let session, session.endsAt <= .now {
             await end()
         } else {
+            await updateTimedDirection()
             persist()
-            scheduleExpiry()
+            scheduleSessionTimer()
         }
     }
 
@@ -109,6 +111,7 @@ final class SessionStore {
         isBusy = true
         defer { isBusy = false }
         var snapshot = SessionSnapshot(situation: situation, minutes: minutes, kind: kind, discreet: discreet)
+        snapshot.state.isPromptSaved = isSaved(snapshot.prompt)
         if ActivityAuthorizationInfo().areActivitiesEnabled {
             do {
                 let requested = try Activity.request(attributes: snapshot.attributes,
@@ -124,7 +127,7 @@ final class SessionStore {
         }
         session = snapshot
         persist()
-        scheduleExpiry()
+        scheduleSessionTimer()
         return true
     }
 
@@ -135,12 +138,37 @@ final class SessionStore {
         defer { isBusy = false }
         // Read the latest activity state, including updates made from the Lock Screen.
         if let activity { snapshot.state = activity.content.state }
-        snapshot.state.advance(in: snapshot.deck, to: kind)
+        let deck = snapshot.deck
+        let switched = snapshot.state.applyTimedDirection(in: deck, from: snapshot.startedAt, until: snapshot.endsAt)
+        if !switched || (kind != nil && kind != snapshot.state.kind) {
+            snapshot.state.advance(in: deck, to: kind)
+        }
+        snapshot.state.isPromptSaved = isSaved(snapshot.prompt)
         session = snapshot
         if let activity {
             await activity.update(ActivityContent(state: snapshot.state, staleDate: snapshot.endsAt))
         }
         persist()
+    }
+
+    func isSaved(_ prompt: ConversationPrompt?) -> Bool {
+        SavedPrompts.shared.contains(prompt)
+    }
+
+    func toggleSavedPrompt(_ prompt: ConversationPrompt) async {
+        guard !isBusy, var snapshot = session, snapshot.endsAt > .now else { return }
+        let saved = !isSaved(prompt)
+        SavedPrompts.shared.setSaved(saved, for: prompt)
+
+        if let activity { snapshot.state = activity.content.state }
+        guard snapshot.prompt?.id == prompt.id else { return }
+        snapshot.state.isPromptSaved = saved
+        session = snapshot
+        if let activity {
+            isBusy = true
+            await activity.update(ActivityContent(state: snapshot.state, staleDate: snapshot.endsAt))
+            isBusy = false
+        }
     }
 
     func end() async {
@@ -174,15 +202,45 @@ final class SessionStore {
         }
     }
 
-    private func scheduleExpiry() {
-        expiryTask?.cancel()
+    private func updateTimedDirection() async {
+        guard !isBusy, var snapshot = session else { return }
+        if let activity { snapshot.state = activity.content.state }
+        let previousState = snapshot.state
+        snapshot.state.applyTimedDirection(in: snapshot.deck, from: snapshot.startedAt, until: snapshot.endsAt)
+        guard snapshot.state != previousState else { return }
+
+        isBusy = true
+        defer { isBusy = false }
+        snapshot.state.isPromptSaved = isSaved(snapshot.prompt)
+        session = snapshot
+        if let activity {
+            await activity.update(ActivityContent(state: snapshot.state, staleDate: snapshot.endsAt))
+        }
+        persist()
+    }
+
+    private func scheduleSessionTimer() {
+        sessionTimer?.cancel()
         guard let session else { return }
         let id = session.id
-        let seconds = max(0, session.endsAt.timeIntervalSinceNow)
-        expiryTask = Task { [weak self] in
-            do { try await Task.sleep(for: .seconds(seconds)) } catch { return }
-            guard let self, self.session?.id == id else { return }
-            await self.end()
+        let nextTransition = session.state.nextTransition(from: session.startedAt, until: session.endsAt)
+        let seconds = max(0, nextTransition.timeIntervalSinceNow)
+
+        sessionTimer = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(seconds))
+                while self?.isBusy == true {
+                    try await Task.sleep(for: .milliseconds(100))
+                }
+            } catch { return }
+            guard let self, !Task.isCancelled, let current = self.session, current.id == id else { return }
+
+            if current.endsAt <= .now {
+                await self.end()
+            } else {
+                await self.updateTimedDirection()
+                if !Task.isCancelled { self.scheduleSessionTimer() }
+            }
         }
     }
 
@@ -191,8 +249,8 @@ final class SessionStore {
             completedCount += 1
             defaults.set(completedCount, forKey: "culet.completed")
         }
-        contentTask?.cancel(); stateTask?.cancel(); expiryTask?.cancel()
-        contentTask = nil; stateTask = nil; expiryTask = nil; activity = nil
+        contentTask?.cancel(); stateTask?.cancel(); sessionTimer?.cancel()
+        contentTask = nil; stateTask = nil; sessionTimer = nil; activity = nil
         session = nil
         persist()
     }

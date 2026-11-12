@@ -99,15 +99,6 @@ enum PromptLibrary {
         "partner-family": ["Thank them for the welcome.", "Invite a favorite family outing.", "Close the visit with gratitude."],
         "custom": ["Invite a small recent highlight.", "Ask what they're anticipating.", "Thank them for the conversation."]
     ]
-
-    static func nextIndex(in deck: [ConversationPrompt], after index: Int, kind: PromptKind) -> Int {
-        guard !deck.isEmpty else { return 0 }
-        for offset in 1...deck.count {
-            let candidate = ((max(index, 0) % deck.count) + offset) % deck.count
-            if deck[candidate].kind == kind { return candidate }
-        }
-        return min(max(index, 0), deck.count - 1)
-    }
 }
 
 extension PromptKind {

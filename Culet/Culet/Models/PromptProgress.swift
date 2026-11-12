@@ -5,6 +5,8 @@ import Foundation
 struct PromptProgress: Codable, Hashable {
     var promptIndex: Int
     var kind: PromptKind
+    var isPromptSaved = false
+    private var timedDirection: PromptKind = .open
     private(set) var seenIndices: [Int]
 
     init(promptIndex: Int, kind: PromptKind, seenIndices: [Int]? = nil) {
@@ -13,13 +15,46 @@ struct PromptProgress: Codable, Hashable {
         self.seenIndices = seenIndices ?? [promptIndex]
     }
 
-    private enum CodingKeys: String, CodingKey { case promptIndex, kind, seenIndices }
+    private enum CodingKeys: String, CodingKey { case promptIndex, kind, seenIndices, isPromptSaved, timedDirection }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         promptIndex = try container.decode(Int.self, forKey: .promptIndex)
         kind = try container.decode(PromptKind.self, forKey: .kind)
+        isPromptSaved = try container.decodeIfPresent(Bool.self, forKey: .isPromptSaved) ?? false
+        timedDirection = try container.decodeIfPresent(PromptKind.self, forKey: .timedDirection) ?? .open
         seenIndices = try container.decodeIfPresent([Int].self, forKey: .seenIndices) ?? [promptIndex]
+    }
+
+    private static func transitions(from start: Date, until end: Date) -> [(date: Date, kind: PromptKind)] {
+        let duration = end.timeIntervalSince(start)
+        return [
+            (start.addingTimeInterval(duration / 6), .explore),
+            (start.addingTimeInterval(duration * 5 / 6), .wrapUp)
+        ]
+    }
+
+    func nextTransition(from start: Date, until end: Date) -> Date {
+        let transitions = Self.transitions(from: start, until: end)
+        switch timedDirection {
+        case .open: return transitions[0].date
+        case .explore: return transitions[1].date
+        case .wrapUp: return end
+        }
+    }
+
+    /// Keeps a manually selected direction until the next scheduled transition.
+    @discardableResult
+    mutating func applyTimedDirection(in deck: [ConversationPrompt], from start: Date,
+                                     until end: Date, now: Date = .now) -> Bool {
+        guard now < end,
+              let direction = Self.transitions(from: start, until: end).last(where: { $0.date <= now })?.kind,
+              direction != timedDirection, timedDirection != .wrapUp else { return false }
+
+        timedDirection = direction
+        guard direction != kind else { return false }
+        advance(in: deck, to: direction)
+        return true
     }
 
     mutating func normalize(in deck: [ConversationPrompt]) {

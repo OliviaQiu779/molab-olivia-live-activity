@@ -45,25 +45,29 @@ struct Eyebrow: View {
     }
 }
 
-/// Gradient-only surface. No decorative ticks, rings, glyphs, or line illustrations.
-struct CardLightField: View {
-    let color: Color
-    var variant = 0
-    var body: some View {
-        CuletCardSurface(tint: color, secondaryTint: CuletPalette.color(at: variant + 3))
-    }
-}
-
-struct PromptCard: View {
+struct PromptCard<HeaderAccessory: View>: View {
     let prompt: ConversationPrompt
-    var color: Color = CuletTheme.colors[0]
-    var secondaryColor: Color = CuletPalette.colors[3]
-    var hintMode = false
+    let color: Color
+    let secondaryColor: Color
+    let hintMode: Bool
+    let headerAccessory: HeaderAccessory
+
+    init(prompt: ConversationPrompt, color: Color = CuletTheme.colors[0],
+         secondaryColor: Color = CuletPalette.colors[3], hintMode: Bool = false,
+         @ViewBuilder headerAccessory: () -> HeaderAccessory = { EmptyView() }) {
+        self.prompt = prompt
+        self.color = color
+        self.secondaryColor = secondaryColor
+        self.hintMode = hintMode
+        self.headerAccessory = headerAccessory()
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 30) {
             HStack {
                 Eyebrow(text: prompt.kind.rawValue)
                 Spacer()
+                headerAccessory
             }
             Spacer(minLength: 10)
             Text(hintMode ? prompt.hint : prompt.text)
