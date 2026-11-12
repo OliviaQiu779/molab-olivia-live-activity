@@ -37,7 +37,11 @@ struct HomeView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 25) {
-                    HStack {
+                    HStack(spacing: 8) {
+                        Image(decorative: "CuletMark")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 24, height: 28)
                         Text("culet").font(.system(size: 24, weight: .medium)).tracking(-1)
                         Spacer()
                     }.padding(.top, 12)
