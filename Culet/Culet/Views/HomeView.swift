@@ -3,11 +3,11 @@ import SwiftUI
 struct HomeView: View {
     @Environment(SessionStore.self) private var store
     @Binding var selection: AppTab
+    @Binding var showingCustom: Bool
     @Namespace private var cards
     @State private var search = ""
     @State private var category = "All"
     @State private var path: [Situation] = []
-    @State private var showingCustom = false
     @State private var customName = ""
     @State private var customScenes: [Situation] = []
     @State private var showingCustomLoadError = false
@@ -75,7 +75,7 @@ struct HomeView: View {
                                         .accessibilityLabel("Clear search")
                                 }
                             }.padding(.horizontal, 18).padding(.vertical, 15)
-                                .background(.white.opacity(0.055), in: .capsule)
+                                .background(Color(white: 0.085), in: .capsule)
                                 .overlay(Capsule().strokeBorder(.white.opacity(0.09), lineWidth: 0.5))
 
                             Button {
@@ -120,7 +120,28 @@ struct HomeView: View {
 
                 }.padding(.horizontal, 22).padding(.bottom, 25)
             }
-            .scrollIndicators(.hidden).culetScreen()
+            .scrollIndicators(.hidden)
+            .background {
+                GeometryReader { geometry in
+                    let radius = max(geometry.size.width * 1.08, 1)
+                    RadialGradient(
+                        stops: [
+                            .init(color: BlueLighting.midBlue.opacity(0.61), location: 0),
+                            .init(color: BlueLighting.deep.opacity(0.34), location: 0.52),
+                            .init(color: .clear, location: 1)
+                        ],
+                        center: UnitPoint(x: 0.88, y: 0),
+                        startRadius: 0,
+                        endRadius: radius
+                    )
+                    .frame(height: radius)
+                    .scaleEffect(x: 1, y: 210 / radius, anchor: .top)
+                }
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+            .culetScreen()
             .task {
                 do {
                     customScenes = try CustomSceneLibrary.load()
@@ -143,26 +164,34 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showingCustom) {
                 NavigationStack {
-                    VStack(alignment: .leading, spacing: 24) {
-                        Eyebrow(text: "Custom scene")
-                        Text("Set the scene.").font(.system(.largeTitle, weight: .light)).tracking(-1)
-                        TextField("e.g. My first book club", text: $customName)
-                            .padding(18).softPanel().submitLabel(.done)
-                            .accessibilityIdentifier("custom-name")
-                            .onSubmit(createCustomScene)
-                        Button("Continue", systemImage: "arrow.right", action: createCustomScene)
-                            .buttonStyle(PrimaryActionStyle())
-                            .disabled(trimmedCustomName.isEmpty)
-                            .opacity(trimmedCustomName.isEmpty ? 0.4 : 1)
-                        Spacer()
-                    }.padding(24).culetScreen()
-                        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showingCustom = false } } }
-                        .alert("Couldn’t save your occasion", isPresented: $showingCustomSaveError) {
-                            Button("OK", role: .cancel) {}
-                        } message: {
-                            Text("Your name is still here. Try again.")
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Eyebrow(text: "Custom scene")
+                            Text("Set the scene.").font(.system(.largeTitle, weight: .light)).tracking(-1)
+                            TextField("e.g. My first book club", text: $customName)
+                                .padding(18).softPanel().submitLabel(.done)
+                                .accessibilityIdentifier("custom-name")
+                                .onSubmit(createCustomScene)
+                            Button("Continue", systemImage: "arrow.right", action: createCustomScene)
+                                .buttonStyle(PrimaryActionStyle())
+                                .disabled(trimmedCustomName.isEmpty)
+                                .opacity(trimmedCustomName.isEmpty ? 0.4 : 1)
                         }
-                }.presentationDetents([.medium, .large]).preferredColorScheme(.dark)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 8)
+                        .padding(.bottom, 12)
+                    }
+                    .scrollBounceBehavior(.basedOnSize)
+                    .culetScreen()
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showingCustom = false } } }
+                    .alert("Couldn’t save your occasion", isPresented: $showingCustomSaveError) {
+                        Button("OK", role: .cancel) {}
+                    } message: {
+                        Text("Your name is still here. Try again.")
+                    }
+                }
+                .presentationDetents([.height(304), .large])
+                .preferredColorScheme(.dark)
             }
         }
     }

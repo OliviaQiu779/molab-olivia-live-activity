@@ -7,6 +7,15 @@ enum CuletTheme {
     static let colors = CuletPalette.colors
 }
 
+enum BlueLighting {
+    static let deep = Color(red: 41.0 / 255, green: 82.0 / 255, blue: 116.0 / 255)
+    static let ocean = Color(red: 54.0 / 255, green: 103.0 / 255, blue: 143.0 / 255)
+    static let silver = Color(red: 205.0 / 255, green: 213.0 / 255, blue: 216.0 / 255)
+    static let mist = Color(red: 152.0 / 255, green: 189.0 / 255, blue: 199.0 / 255)
+    static let edgeBlue = Color(red: 129.0 / 255, green: 153.0 / 255, blue: 200.0 / 255)
+    static let midBlue = Color(red: 83.0 / 255, green: 130.0 / 255, blue: 167.0 / 255)
+}
+
 struct AmbientBackground: View {
     var body: some View {
         CuletTheme.background.ignoresSafeArea().accessibilityHidden(true)

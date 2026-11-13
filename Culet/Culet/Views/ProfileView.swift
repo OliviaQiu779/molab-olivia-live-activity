@@ -11,30 +11,7 @@ struct ProfileView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 30) {
-                    VStack(alignment: .leading, spacing: 20) {
-                        NavigationLink {
-                            ProfileDetailsView(displayName: $displayName)
-                        } label: {
-                            HStack(spacing: 14) {
-                                Image(systemName: "person")
-                                    .font(.system(size: 17, weight: .ultraLight))
-                                    .frame(width: 48, height: 48)
-                                    .glassEffect(.regular, in: .circle)
-                                    .accessibilityHidden(true)
-                                Text(displayName.isEmpty ? "Olivia Q" : displayName)
-                                    .font(.title3).lineLimit(2)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                                    .accessibilityHidden(true)
-                            }
-                            .frame(minHeight: 48)
-                            .contentShape(.rect)
-                        }
-                        .buttonStyle(.plain)
-
-                        Divider()
-                    }.padding(.top, 20)
+                    centeredProfileHeader
 
                     VStack(alignment: .leading, spacing: 10) {
                         Eyebrow(text: "Summary")
@@ -89,9 +66,76 @@ struct ProfileView: View {
                         }
                     }.foregroundStyle(.white.opacity(0.5)).padding(.bottom, 28)
                 }.padding(.horizontal, 24)
-            }.scrollIndicators(.hidden).culetScreen()
-                .navigationTitle("Profile").navigationBarTitleDisplayMode(.inline)
+            }
+            .scrollIndicators(.hidden)
+            .foregroundStyle(CuletTheme.ink)
+            .background { profileBackground }
+            .navigationTitle("Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        ProfileDetailsView(displayName: $displayName)
+                    } label: {
+                        Label("Edit profile", systemImage: "pencil")
+                            .labelStyle(.iconOnly)
+                    }
+                }
+            }
         }
+    }
+
+    private var centeredProfileHeader: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "person.fill")
+                .font(.system(size: 48, weight: .light))
+                .foregroundStyle(.white.opacity(0.8))
+                .frame(width: 108, height: 108)
+                .glassEffect(.regular, in: .circle)
+                .accessibilityHidden(true)
+
+            Text(displayName.isEmpty ? "Olivia Q" : displayName)
+                .font(.largeTitle.weight(.semibold))
+                .tracking(-0.8)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .accessibilityAddTraits(.isHeader)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 20)
+        .padding(.bottom, 4)
+    }
+
+    private var profileBackground: some View {
+        ZStack(alignment: .top) {
+            CuletTheme.background
+            LinearGradient(
+                stops: [
+                    .init(color: BlueLighting.mist, location: 0),
+                    .init(color: BlueLighting.midBlue, location: 0.30),
+                    .init(color: BlueLighting.deep, location: 0.52),
+                    .init(color: BlueLighting.deep.opacity(0), location: 0.92)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .frame(height: 340)
+            .mask {
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0),
+                        .init(color: .black.opacity(0.73), location: 0.38),
+                        .init(color: .black.opacity(0.27), location: 0.66),
+                        .init(color: .clear, location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .opacity(0.76)
+        }
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
     }
 
     private func settingsRow(_ title: String, icon: String) -> some View {

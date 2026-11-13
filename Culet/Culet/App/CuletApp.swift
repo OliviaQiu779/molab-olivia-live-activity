@@ -17,18 +17,29 @@ struct RootView: View {
     @Environment(SessionStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
     @State private var selection: AppTab = .home
+    @State private var showingCustomScene = false
 
     var body: some View {
         @Bindable var store = store
         TabView(selection: $selection) {
             Tab("Home", systemImage: "square.grid.2x2", value: AppTab.home) {
-                HomeView(selection: $selection)
+                HomeView(selection: $selection, showingCustom: $showingCustomScene)
             }
             Tab("Session", systemImage: "waveform", value: AppTab.session) {
                 SessionView(selection: $selection)
             }
             Tab("Profile", systemImage: "person", value: AppTab.profile) {
                 ProfileView()
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if showingCustomScene {
+                // Cover the tab bar and Home content behind the native sheet’s bottom inset.
+                CuletTheme.background
+                    .frame(height: 96)
+                    .ignoresSafeArea(edges: .bottom)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             }
         }
         .task { await store.reconcile() }

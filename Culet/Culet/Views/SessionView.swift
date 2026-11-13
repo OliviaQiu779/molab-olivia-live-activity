@@ -108,6 +108,8 @@ struct SessionView: View {
         GeometryReader { geometry in
             ScrollView {
                 VStack(spacing: 24) {
+                    SessionEmptyCardStack()
+
                     VStack(spacing: 12) {
                         Text("A moment to connect.")
                             .font(.system(.largeTitle, weight: .light))
@@ -121,7 +123,7 @@ struct SessionView: View {
                     Button("Find your occasion", systemImage: "arrow.up.right") {
                         selection = .home
                     }
-                    .buttonStyle(PrimaryActionStyle())
+                    .buttonStyle(SessionOccasionButtonStyle())
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 24)
@@ -131,40 +133,97 @@ struct SessionView: View {
             .scrollIndicators(.hidden)
         }
         .background {
-            ZStack {
-                EllipticalGradient(
-                    stops: [
-                        .init(color: Color(red: 0.22, green: 0.37, blue: 0.38), location: 0),
-                        .init(color: Color(red: 0.15, green: 0.27, blue: 0.30), location: 0.35),
-                        .init(color: .clear, location: 1)
-                    ],
-                    center: .init(x: 0.35, y: 0.41),
-                    endRadiusFraction: 0.66
-                )
-                EllipticalGradient(
-                    colors: [Color(red: 0.23, green: 0.19, blue: 0.30).opacity(0.72), .clear],
-                    center: .init(x: 0.67, y: 0.50),
-                    endRadiusFraction: 0.68
-                )
-            }
+            LinearGradient(
+                stops: [
+                    .init(color: BlueLighting.deep, location: 0),
+                    .init(color: BlueLighting.ocean, location: 0.22),
+                    .init(color: BlueLighting.silver, location: 0.53),
+                    .init(color: BlueLighting.mist, location: 0.75),
+                    .init(color: BlueLighting.edgeBlue, location: 1)
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
             .mask {
                 LinearGradient(
                     stops: [
-                        .init(color: .clear, location: 0.11),
-                        .init(color: .black, location: 0.32),
-                        .init(color: .black, location: 0.57),
-                        .init(color: .clear, location: 0.88)
+                        .init(color: .black, location: 0),
+                        .init(color: .black.opacity(0.60), location: 0.14),
+                        .init(color: .black.opacity(0.20), location: 0.29),
+                        .init(color: .clear, location: 0.48)
                     ],
-                    startPoint: .top,
-                    endPoint: .bottom
+                    startPoint: .bottom, endPoint: .top
                 )
             }
-            .ignoresSafeArea()
+            .opacity(0.76)
+            .ignoresSafeArea(edges: .bottom)
+            .allowsHitTesting(false)
             .accessibilityHidden(true)
         }
         .toolbarBackground(.hidden, for: .navigationBar)
     }
+}
 
+private struct SessionOccasionButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.medium))
+            .multilineTextAlignment(.center)
+            .foregroundStyle(CuletTheme.ink)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 10)
+            .frame(minHeight: 46)
+            .background {
+                Capsule().fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color(red: 53.0 / 255, green: 89.0 / 255, blue: 113.0 / 255), location: 0),
+                            .init(color: Color(red: 41.0 / 255, green: 71.0 / 255, blue: 100.0 / 255), location: 0.55),
+                            .init(color: Color(red: 56.0 / 255, green: 77.0 / 255, blue: 114.0 / 255), location: 1)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .overlay {
+                    Capsule().fill(.black.opacity(configuration.isPressed ? 0.20 : 0))
+                }
+            }
+            .overlay {
+                Capsule().strokeBorder(.white.opacity(0.22), lineWidth: 1)
+            }
+            .contentShape(.capsule)
+    }
+}
+
+private struct SessionEmptyCardStack: View {
+    var body: some View {
+        ZStack {
+            CuletCardSurface(tint: BlueLighting.mist, secondaryTint: BlueLighting.ocean, cornerRadius: 16)
+                .frame(width: 65, height: 69)
+                .rotationEffect(.degrees(-12))
+                .offset(x: -37)
+
+            CuletCardSurface(tint: BlueLighting.ocean, secondaryTint: BlueLighting.mist, cornerRadius: 16)
+                .frame(width: 65, height: 69)
+                .rotationEffect(.degrees(12))
+                .offset(x: 37)
+
+            Image(decorative: "CuletMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 39, height: 47)
+                .frame(width: 71, height: 77)
+                .background(Color(red: 0.067, green: 0.082, blue: 0.106), in: .rect(cornerRadius: 18))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18)
+                        .strokeBorder(.white.opacity(0.20), lineWidth: 1)
+                }
+        }
+        .frame(width: 212, height: 103)
+        .accessibilityHidden(true)
+        .allowsHitTesting(false)
+    }
 }
 
 private struct EndSessionSheet: View {
